@@ -1,64 +1,115 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
+const urlBase = "https://assets.breatheco.de/apis/fake/todos/user/";
+const apiUsername = "khriscito";
 
 const Input = () => {
-  const [items, setItems] = useState([]);
-  const [button, setButton] = useState(false);
+    const [tasks, setTasks] = useState([]);
+    const [inputValue, setInputValue] = useState('');
 
-  const handleItemChange = (newItem) => {
-    setItems((allItems) => [...allItems, newItem]);
-  };
+    const fetchTodoApi = async () => {
+        try {
+            const response = await fetch(`${urlBase}${apiUsername}`);
+            const data = await response.json();
+            console.log(data);
+            setTasks(data);
+        } catch (error) {
+            console.log(error);
+        }
+    };
 
-  const handleEnterInput = (event) => {
-    if (event.key === "Enter") {
-      let newItem = event.target.value;
-      handleItemChange(newItem);
-      event.target.value = "";
-    }
-  };
+    const syncTasks = async (newTask) => {
+        try {
+            const response = await fetch(`${urlBase}${apiUsername}`, {
+                method: 'PUT',
+                body: JSON.stringify(newTask),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (!response.ok) {
+                throw new Error('Error updating tasks');
+            }
 
+            fetchTodoApi();
 
-  const handleDeleteItem = (index) => {
-    setItems((allItems) => allItems.filter((item, i) => i !== index));
-  };
+        } catch (error) {
+            console.log(error);
+        }
+    };
 
-  console.log(items)
+    const addTask = async (e) => {
+        e.preventDefault();
+        if (inputValue.trim()) {
+            const newTasks = [...tasks, { label: inputValue, done: false }];
+            setTasks(newTasks);
+            setInputValue('');
+            await syncTasks(newTasks);
+        }
+    };
+
+    const removeTask = async (index) => {
+        const newTasks = tasks.filter((_, i) => i !== index);
+        setTasks(newTasks);
+        await syncTasks(newTasks);
+    };
+
+    const removeAllTasks = async () => {
+        setTasks([]);
+        await syncTasks([]);
+    };
+
+    const pendingTasks = tasks.filter((task) => !task.done).length;
+
+    useEffect(() => {
+        fetchTodoApi();
+    }, []);
+
 
   return (
     <div className="containerList">
-      <div className="card text-center ">
+      <div className="card text-center">
         <div className="card-header">
           <h1>To Do List</h1>
         </div>
         <div className="card-body">
           <div className="input-group input-group-sm mb-3">
+          <form onSubmit={addTask}>
             <input
               type="text"
               className="form-control"
               aria-label="Sizing example input"
               aria-describedby="inputGroup-sizing-sm"
-              onKeyDown={handleEnterInput}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Ingrese una tarea"
             />
+            </form>
           </div>
 
-          {items.length == 0 ? (
+          {tasks.length === 0 ? (
             <p>No hay tareas</p>
           ) : (
-
-          items.map((item, index) => {
-            return (
-              <div key={`${item}-${index}`}
-                  className="d-flex justify-content-between">
-                <p>
-                  {item}
-                </p>
-                <button type="button" className="btn btn-danger hidden" onClick={() => handleDeleteItem(index)}>Click para eliminar de la lista</button>
-
+            tasks.map((task, index) => (
+              <div
+                key={index}
+                className="d-flex justify-content-between"
+              >
+                <p>{task.label}</p>
+                <button
+                  type="button"
+                  className="btn btn-danger hidden"
+                  onClick={() =>  removeTask(index)}
+                >
+                  Click para eliminar de la lista
+                </button>
               </div>
-            );
-          }))}
+            ))
+          )}
+          <button onClick={removeAllTasks}>Borrar todas las tareas</button>
         </div>
         <div className="card-footer text-body-secondary">
-          Quedan {items.length} items
+          Quedan {pendingTasks} items
         </div>
       </div>
     </div>
@@ -66,3 +117,5 @@ const Input = () => {
 };
 
 export default Input;
+
+
